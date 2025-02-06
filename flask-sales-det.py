@@ -5,142 +5,126 @@ import json
 app = Flask(__name__)
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '****'
+app.config['MYSQL_PASSWORD'] = 'fatimaroot'
 app.config['MYSQL_DB'] = 'flaskapp'
 app.secret_key = "super secret key"
 mysql = MySQL(app)
 
 
 @app.route('/salesdet')
-def get_salesdet():
+def get_salesdets():
     cur = mysql.connection.cursor()
     cur.execute('SELECT * FROM sales_det')
     data = cur.fetchall()
     cur.close()
     return jsonify(data)
-
-
-@app.route('/salesdet/get-one', methods=['GET'])
+    
+@app.route('/salesdet/get-bill-data', methods=['GET'])
 def get_salesdet():
- 
-    cur = mysql.connection.cursor()
-    cur.execute('SELECT * FROM sales_det')
-    data = cur.fetchall()
-    # Convert tuple to subscribable dictionary
- 
-    resultDict = dict((x, [y,z]) for x, y,z in data)
-    print("The result dictionary:", resultDict)
     
     resp = jsonify(success=False)   # Returns False by default 
-    prod_code = request.args.get('prod_code')
-    if(prod_code is not None):
-        prod_code1 = int(prod_code)
-        
-        if resultDict.get(prod_code1) is not None:
-            sqlst="SELECT * FROM products WHERE prod_code = %s"
-            values=prod_code
-            cur.execute(sqlst ,values)
-            mysql.connection.commit()
-            data = cur.fetchall()
-
-            flash('One product shown')
-            resp = jsonify(data)
+    
+    bill_no = request.args.get('bill_no')
           
-    cur.close()
+    if bill_no is not None:
+        cur = mysql.connection.cursor()
+        sqlst="SELECT * FROM sales_det WHERE bill_no = %s"
+        values=[(bill_no)]
+        cur.execute(sqlst ,values)
+        mysql.connection.commit()
+        data = cur.fetchall()
+        print("hello")
+
+        flash('One Bill data shown')
+        resp = jsonify(data)
+        cur.close()
     
     return resp
 
-@app.route('/products/delete', methods=['PUT'])
-def delete_products():
+@app.route('/salesdet/add-product', methods=['POST'])
+def add_product_salesdet():
  
-    cur = mysql.connection.cursor()
-    cur.execute('SELECT * FROM products')
-    data = cur.fetchall()
-    # Convert tuple to subscribable dictionary
-   
-    #res = {key: value for key, value in a}
-    resultDict = dict((x, [y,z]) for x, y,z in data)
-    print("The result dictionary:", resultDict)
-    
+    bill_no = request.args.get('bill_no')
     prod_code = request.args.get('prod_code')
-    prod_code1 = int(prod_code)
+    quantity = request.args.get('quantity')
+    rate = request.args.get('rate')
+    disc = request.args.get('disc')
+    net_rate = request.args.get('net_rate')
+    amount = request.args.get('amount')
+
     resp = jsonify(success=False)
 
-    if resultDict.get(prod_code1) is not None:
+    if bill_no is not None and prod_code is not None:
+        cur = mysql.connection.cursor()
+        sqlst="insert into sales_det (bill_no,prod_code,quantity,rate,disc,net_rate,amount) values (%s, %s, %s,%s, %s, %s, %s)"
+        values=[(bill_no),(prod_code),(quantity),(rate),(disc), (net_rate),(amount)]
+        cur.execute(sqlst ,values)
+        mysql.connection.commit()
+
+        flash('You have successfully inserted sales details')
+        resp = jsonify(success=True)
+
+    return resp
+
+@app.route('/salesdet/delete-product', methods=['PUT'])
+def delete_product_salesdet():
+ 
+    bill_no = request.args.get('bill_no')
+    prod_code = request.args.get('prod_code')
+
+    resp = jsonify(success=False)
+
+    if bill_no is not None and prod_code is not None:
+        cur = mysql.connection.cursor()
   
-        sqlst="DELETE FROM products WHERE prod_code = %s"
-        values=prod_code
+        sqlst="DELETE FROM sales_det WHERE bill_no = %s and prod_code = %s"
+        values=[(bill_no),(prod_code)]
         cur.execute(sqlst ,values)
         mysql.connection.commit()
 
-        flash('You have successfully deleted product')
+        flash('You have successfully deleted sales details')
         resp = jsonify(success=True)
-        
-    cur.close()
+        cur.close()
     
     return resp
 
-@app.route('/products/update', methods=['PUT'])
-def update_products():
-    
-    cur = mysql.connection.cursor()
-    cur.execute('SELECT * FROM products')
-    data = cur.fetchall()
-    # Convert tuple to JSON
-    #json_data = json.dumps(data)
-    print(type(data))
-    #res = {key: value for key, value in a}
-    resultDict = dict((x, [y,z]) for x, y,z in data)
-    print("The result dictionary:", resultDict)
-
-    
+@app.route('/salesdet/update-product', methods=['PUT'])
+def update_product_salesdet():
+      
+    bill_no = request.args.get('bill_no')
     prod_code = request.args.get('prod_code')
-    description = request.args.get('description')
+    quantity = request.args.get('quantity')
     rate = request.args.get('rate')
-    
-    if(prod_code is not None)
-        prod_code1 = int(prod_code)
+    disc = request.args.get('disc')
+    net_rate = request.args.get('net_rate')
+    amount = request.args.get('amount')
+
+    cur = mysql.connection.cursor()
+    sqlst="SELECT * FROM sales_det WHERE bill_no=%s and prod_code=%s"
+    values=[(bill_no),(prod_code)]
+    cur.execute(sqlst ,values)
+    data = cur.fetchall()
 
     resp = jsonify(success=False)
 
-    if prod_code is not None and resultDict.get(prod_code1) is not None:
-        sqlst="update products SET description = %s, rate = %s WHERE prod_code = %s"
-        values=[ (description), (rate),(prod_code)]
+    if data is not None:
+        sqlst="update sales_det SET quantity = %s, rate = %s, disc = %s, net_rate = %s, amount = %s WHERE bill_no = %s and prod_code = %s"
+        values=[(bill_no),(prod_code),(quantity),(rate),(disc), (net_rate),(amount)]
         cur.execute(sqlst ,values)
         mysql.connection.commit()
-        flash("updated product successfully")
+        flash("updated sales details successfully")
         resp = jsonify(success=True)
-    elif prod_code is not None and resultDict.get(prod_code1) is None:
-        sqlst="insert into products (prod_code,description, rate) values (%s, %s, %s) "
-        values=[ (prod_code),(description), (rate)]
+    elif data is None and bill_no is not None and prod_code is not None:
+        sqlst="insert into sales_det (bill_no,prod_code,quantity,rate,disc,net_rate,amount) values (%s, %s, %s,%s, %s, %s, %s)"
+        values=[(bill_no),(prod_code),(quantity),(rate),(disc), (net_rate),(amount)]
         cur.execute(sqlst ,values)
         mysql.connection.commit()
-        flash("inserted product successfully")
+        flash("inserted sales details successfully")
         resp = jsonify(success=True)
 
     
     cur.close()
     return resp
-
-@app.route('/products/insert', methods=['POST'])
-def insert_products():
-    
-    cur = mysql.connection.cursor()
-    
-    prod_code = request.args.get('prod_code')
-    description = request.args.get('description')
-    rate = request.args.get('rate')
-
-    
-    sqlst="insert into products (prod_code,description, rate) values (%s, %s, %s) "
-    values=[ (prod_code),(description), (rate)]
-    cur.execute(sqlst ,values)
-    mysql.connection.commit()
-    flash('You have successfully inserted product')
-    cur.execute('SELECT * FROM products')
-    data = cur.fetchall()
-    cur.close()
-    return jsonify(data)
 
 
 if __name__ == '__main__':
